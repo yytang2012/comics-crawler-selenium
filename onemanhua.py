@@ -1,9 +1,13 @@
 import json
+import os
 from urllib.parse import urljoin
 
 from parsel import Selector
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+
+root_dir = os.path.dirname(os.path.realpath(__file__))
+downloads_dir = os.path.join(root_dir, 'Downloads')
 
 
 def verify_url_format(url):
@@ -32,18 +36,37 @@ class Onemanhua:
         for sub in _subtitles:
             print(sub)
 
-        subtitle_info = []
-        for sub in _subtitles:
-            subtitle_info.append({
-                'subtitle': sub['subtitle'],
-                'image_urls': self.parse_image(sub['subtitle_url'])
-            })
-            results = {
+        comic_dir = os.path.join(downloads_dir, title)
+        if os.path.isdir(comic_dir) is False:
+            os.makedirs(comic_dir)
+        json_path = os.path.join(comic_dir, title + '.json')
+        if os.path.isfile(json_path) is True:
+            with open(json_path) as f:
+                comic_info = json.load(f)
+        else:
+            comic_info = {
                 "title": title,
-                "subtitle_info": subtitle_info
+                "subtitle_info": []
             }
-            with open('Downloads/{0}.json'.format(title), 'w') as f:
-                f.write(json.dumps(results, indent=4))
+        for idx, sub in enumerate(_subtitles):
+            subtitle_info = comic_info['subtitle_info']
+            if len(subtitle_info) > idx:
+                if subtitle_info[idx]['subtitle'] == sub['subtitle']:
+                    continue
+                else:
+                    new_sub = {
+                        'subtitle': sub['subtitle'],
+                        'image_urls': self.parse_image(sub['subtitle_url'])
+                    }
+                    subtitle_info = subtitle_info[:idx] + new_sub + subtitle_info[idx:]
+            else:
+                subtitle_info.append({
+                    'subtitle': sub['subtitle'],
+                    'image_urls': self.parse_image(sub['subtitle_url'])
+                })
+            comic_info["subtitle_info"] = subtitle_info
+            with open(json_path, 'w') as f:
+                f.write(json.dumps(comic_info, indent=4))
         self.driver.quit()
 
     def parse_title(self):
@@ -71,14 +94,25 @@ class Onemanhua:
 
         img_sel = sel.xpath('//div[@id="mangalist"]/div[@class="mh_comicpic"]/img')
         img_cnt = len(img_sel)
-        url_template = img_sel.xpath('@src').extract()[0]
-        url_template = 'https:' + url_template.strip('https:')[:-8]
-        url_template = url_template.strip().strip('/')
-        return ['{prefix}/{page_id:04d}.jpg'.format(prefix=url_template, page_id=page_id) for page_id in
-                range(1, img_cnt + 1)]
+        tmp = img_sel.xpath('@src').extract()
+        if tmp:
+            url_template = img_sel.xpath('@src').extract()[0]
+            url_template = 'https:' + url_template.strip('https:')[:-8]
+            url_template = url_template.strip().strip('/')
+            return ['{prefix}/{page_id:04d}.jpg'.format(prefix=url_template, page_id=page_id) for page_id in
+                    range(1, img_cnt + 1)]
+        else:
+            return []
 
 
 if __name__ == '__main__':
-    url = 'https://www.onemanhua.com/12233/'
-    comic = Onemanhua()
-    comic.start(url)
+    urlpath = os.path.join(root_dir, 'urlfile.txt')
+    if os.path.isfile(urlpath) is False:
+        urlpath = os.path.join(root_dir, 'urlfile_default.txt')
+    with open(urlpath, 'r') as f:
+        for url in f.readlines():
+            url = url.strip()
+            print(url)
+            # url = 'https://www.onemanhua.com/10263/'
+            comic = Onemanhua()
+            comic.start(url)
