@@ -46,9 +46,13 @@ class Onemanhua:
         else:
             comic_info = {
                 "title": title,
+                "url": url,
                 "subtitle_info": []
             }
+
+        total_subtitles = len(_subtitles)
         for idx, sub in enumerate(_subtitles):
+            print("{0:.1f}%: {1}".format(idx*100/total_subtitles, sub['subtitle']))
             subtitle_info = comic_info['subtitle_info']
             if len(subtitle_info) > idx:
                 if subtitle_info[idx]['subtitle'] == sub['subtitle']:
@@ -58,7 +62,7 @@ class Onemanhua:
                         'subtitle': sub['subtitle'],
                         'image_urls': self.parse_image(sub['subtitle_url'])
                     }
-                    subtitle_info = subtitle_info[:idx] + new_sub + subtitle_info[idx:]
+                    subtitle_info = subtitle_info[:idx] + [new_sub] + subtitle_info[idx:]
             else:
                 subtitle_info.append({
                     'subtitle': sub['subtitle'],

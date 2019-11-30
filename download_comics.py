@@ -18,6 +18,7 @@ def download_comics():
             with open(json_path, 'r') as f:
                 comic_info = json.load(f)
             subtitle_info = comic_info['subtitle_info']
+            print(comic_dir)
             for item in subtitle_info:
                 subtitle = item['subtitle']
                 image_urls = item['image_urls']
@@ -32,7 +33,8 @@ def download_comics():
                         print(cmd)
                         os.system(cmd)
                     else:
-                        print("{image_path} was downloaded".format(image_path=image_path))
+                        # print("{image_path} was downloaded".format(image_path=image_path))
+                        pass
 
 
 if __name__ == '__main__':
