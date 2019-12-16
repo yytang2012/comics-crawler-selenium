@@ -68,7 +68,7 @@ class Onemanhua:
                     'subtitle': sub['subtitle'],
                     'image_urls': self.parse_image(sub['subtitle_url'])
                 })
-            comic_info["subtitle_info"] = subtitle_info
+            comic_info["subtitle_info"] = subtitle_info[:total_subtitles]
             with open(json_path, 'w') as f:
                 f.write(json.dumps(comic_info, indent=4))
         self.driver.quit()
