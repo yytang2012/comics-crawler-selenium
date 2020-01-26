@@ -1,0 +1,20 @@
+version: '2.3'
+services:
+  download_image_url:
+    image: crawler_selenium:latest
+    build: ..
+    ports:
+    - "5000:5000"
+    volumes:
+    - /etc/localtime:/etc/localtime
+    - /tmp/.X11-unix:/tmp/.X11-unix
+    - ${SOURCE_CODE_DIR}:/app/
+    entrypoint: ["python3", "onemanhua.py"]
+#    entrypoint: ["/bin/bash"]
+
+    environment:
+    - DISPLAY=$DISPLAY
+    - QT_X11_NO_MITSHM=1
+    - HIDE_BROWSER=YES
+    stdin_open: true
+    tty: true

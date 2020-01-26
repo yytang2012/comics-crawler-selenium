@@ -1,10 +1,10 @@
 import json
 import os
+import time
 from urllib.parse import urljoin
 
 from parsel import Selector
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 
 root_dir = os.path.dirname(os.path.realpath(__file__))
 downloads_dir = os.path.join(root_dir, 'Downloads')
@@ -19,11 +19,8 @@ def verify_url_format(url):
 
 
 class Onemanhua:
-    def __init__(self):
-        chrome_options = Options()
-        # chrome_options.add_argument("--headless")
-        # chrome_options.add_argument("--window-size=1920x1080")
-        self.driver = webdriver.Chrome(chrome_options=chrome_options)
+    def __init__(self, headless=False):
+        self.driver = self.initialize_driver(headless=headless)
 
     def start(self, url):
         homepage = verify_url_format(url)
@@ -52,7 +49,7 @@ class Onemanhua:
 
         total_subtitles = len(_subtitles)
         for idx, sub in enumerate(_subtitles):
-            print("{0:.1f}%: {1}".format(idx*100/total_subtitles, sub['subtitle']))
+            print("{0:.1f}%: {1}".format(idx * 100 / total_subtitles, sub['subtitle']))
             subtitle_info = comic_info['subtitle_info']
             if len(subtitle_info) > idx:
                 if subtitle_info[idx]['subtitle'] == sub['subtitle']:
@@ -91,12 +88,34 @@ class Onemanhua:
             })
         return subtitles[::-1]
 
-    def parse_image(self, subtitle_url):
-        _driver = self.driver
-        _driver.get(subtitle_url)
-        sel = Selector(text=_driver.page_source)
+    def initialize_driver(self, headless=False):
+        options = webdriver.FirefoxOptions()
+        if headless is True:
+            options.add_argument("--headless")
+        _driver = webdriver.Firefox(options=options)
+        return _driver
 
-        img_sel = sel.xpath('//div[@id="mangalist"]/div[@class="mh_comicpic"]/img')
+    def get_selector(self, web_url):
+        _driver = self.driver
+        _fetched = False
+        attempt_count = 5
+        selector = None
+        while _fetched is False and attempt_count > 0:
+            try:
+                _driver.get(web_url)
+                selector = Selector(text=_driver.page_source)
+                _fetched = True
+            except Exception as e:
+                attempt_count -= 1
+                print(web_url)
+                time.sleep(1)
+                _driver = self.initialize_driver()
+        self.driver = _driver
+        return selector
+
+    def parse_image(self, subtitle_url):
+        selector = self.get_selector(subtitle_url)
+        img_sel = selector.xpath('//div[@id="mangalist"]/div[@class="mh_comicpic"]/img')
         img_cnt = len(img_sel)
         tmp = img_sel.xpath('@src').extract()
         if tmp:
@@ -111,6 +130,8 @@ class Onemanhua:
 
 if __name__ == '__main__':
     urlpath = os.path.join(root_dir, 'urlfile.txt')
+    hide_browser = os.environ.get('HIDE_BROWSER', "No")
+    headless = True if hide_browser.lower() in ["y", "yes"] else False
     if os.path.isfile(urlpath) is False:
         urlpath = os.path.join(root_dir, 'urlfile_default.txt')
     with open(urlpath, 'r') as f:
@@ -118,5 +139,6 @@ if __name__ == '__main__':
             url = url.strip()
             print(url)
             # url = 'https://www.onemanhua.com/10263/'
-            comic = Onemanhua()
+            print(headless)
+            comic = Onemanhua(headless=headless)
             comic.start(url)
