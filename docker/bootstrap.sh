@@ -20,3 +20,8 @@ newgrp docker
 # To enable pycharm docker management
 sudo chmod a+rwx /var/run/docker.sock
 sudo chmod a+rwx /var/run/docker.pid
+
+# Enable GUI in the host OS
+xhost local:root
+
+

@@ -3,15 +3,15 @@ import json
 import os
 import shutil
 
-comic_name = '妹子与科学'
-root_dir = '/media/yytang/Data/comics/comics_downloads'
 
-if __name__ == '__main__':
+def combine_subtitle(root_dir, comic_name):
     src_dir = os.path.join(root_dir, comic_name)
+    json_file = os.path.join(src_dir, comic_name + '.json')
+    if os.path.isfile(json_file) is False:
+        return
     dst_dir = os.path.join(root_dir, comic_name + '-volumes')
     if os.path.isdir(dst_dir) is False:
         os.mkdir(dst_dir)
-    json_file = os.path.join(src_dir, comic_name + '.json')
     with open(json_file, 'r') as f:
         comic_info = json.load(f)
     subtitles = [sub['subtitle'] for sub in comic_info['subtitle_info']]
@@ -31,12 +31,17 @@ if __name__ == '__main__':
             src = os.path.join(sub_dir, img)
             if os.path.isfile(src) and img[-4:] == '.jpg':
                 dst = os.path.join(volume_path, '{0:03d}.jpg'.format(volume_page + idx))
-                shutil.copy(src, dst)
+                if os.path.isfile(dst) is False:
+                    shutil.copy(src, dst)
         volume_page += len(images)
         if volume_page > volume_page_threshold:
             volume_page = 1
             volume_id += 1
 
 
-
-
+if __name__ == '__main__':
+    root_dir = '/media/yytang/Data/comics/comics_downloads'
+    for _dir in os.listdir(root_dir):
+        _dir_path = os.path.join(root_dir, _dir)
+        if os.path.isdir(_dir_path) is True:
+            combine_subtitle(root_dir, _dir)

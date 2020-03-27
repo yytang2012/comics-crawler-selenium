@@ -1,8 +1,8 @@
 import json
 import os
 import time
-from urllib.parse import urljoin
-
+from urllib.parse import urljoin, quote
+import re
 from parsel import Selector
 from selenium import webdriver
 
@@ -12,10 +12,18 @@ downloads_dir = os.path.join(root_dir, 'Downloads')
 
 def verify_url_format(url):
     #  Example: https://www.onemanhua.com/10262/
-    import re
-    p = 'https://www.onemanhua.com/[\d]+'
+    p = 'https://www.onemanhua.com/([\d]+)'
     m = re.match(p, url)
-    return m.group(0) if m else None
+
+    return (m.group(0), m.group(1)) if m else None
+
+
+def subtitle_analysis(subtitle_string):
+    p = '([^(]+)\(([\d]+)P\)'
+    m = re.search(p, subtitle_string)
+    subtitle = m.group(1).strip()
+    pages = int(m.group(2).strip())
+    return subtitle, pages
 
 
 class Onemanhua:
@@ -23,11 +31,13 @@ class Onemanhua:
         self.driver = self.initialize_driver(headless=headless)
 
     def start(self, url):
-        homepage = verify_url_format(url)
+        res = verify_url_format(url)
+        if res is None:
+            return
+        homepage, cid = res
         self.driver.get(homepage)
         title = self.parse_title()
         _subtitles = self.parse_subtitles()
-        _subtitles = _subtitles[:]
 
         print(title)
         for sub in _subtitles:
@@ -57,13 +67,13 @@ class Onemanhua:
                 else:
                     new_sub = {
                         'subtitle': sub['subtitle'],
-                        'image_urls': self.parse_image(sub['subtitle_url'])
+                        'image_urls': self.parse_image(sub['subtitle'], sub['subtitle_url'], cid)
                     }
                     subtitle_info = subtitle_info[:idx] + [new_sub] + subtitle_info[idx:]
             else:
                 subtitle_info.append({
                     'subtitle': sub['subtitle'],
-                    'image_urls': self.parse_image(sub['subtitle_url'])
+                    'image_urls': self.parse_image(sub['subtitle'], sub['subtitle_url'], cid)
                 })
             comic_info["subtitle_info"] = subtitle_info[:total_subtitles]
             with open(json_path, 'w') as f:
@@ -83,8 +93,8 @@ class Onemanhua:
         subtitles = []
         for tmp_sel in subtitle_sel:
             subtitles.append({
-                "subtitle": tmp_sel.xpath('text()').extract()[0],
-                "subtitle_url": urljoin(_driver.current_url, tmp_sel.xpath('@href').extract()[0])
+                "subtitle": tmp_sel.xpath('text()').extract()[0].strip(),
+                "subtitle_url": urljoin(_driver.current_url, tmp_sel.xpath('@href').extract()[0].strip())
             })
         return subtitles[::-1]
 
@@ -102,6 +112,7 @@ class Onemanhua:
         selector = None
         while _fetched is False and attempt_count > 0:
             try:
+                _driver.execute_script("window.scrollTo(0, 3000);")
                 _driver.get(web_url)
                 selector = Selector(text=_driver.page_source)
                 _fetched = True
@@ -113,19 +124,23 @@ class Onemanhua:
         self.driver = _driver
         return selector
 
-    def parse_image(self, subtitle_url):
+    def parse_image(self, subtitle, subtitle_url, cid):
         selector = self.get_selector(subtitle_url)
-        img_sel = selector.xpath('//div[@id="mangalist"]/div[@class="mh_comicpic"]/img')
-        img_cnt = len(img_sel)
-        tmp = img_sel.xpath('@src').extract()
-        if tmp:
-            url_template = img_sel.xpath('@src').extract()[0]
-            url_template = 'https:' + url_template.strip('https:')[:-8]
-            url_template = url_template.strip().strip('/')
-            return ['{prefix}/{page_id:04d}.jpg'.format(prefix=url_template, page_id=page_id) for page_id in
-                    range(1, img_cnt + 1)]
-        else:
-            return []
+        img_sel = selector.xpath('//div[@class="mh_headpager"]/select[@class="mh_select"]/option')
+        pages = len(img_sel)
+
+        return ['https://img.onemanhua.com/comic/{cid}/{subtitle}/{page_id:04d}.jpg'.format(
+            cid=cid, subtitle=quote(subtitle), page_id=pid
+        ) for pid in range(1, pages + 1)]
+
+
+    def parse_image2(self, subtitle_string, cid):
+        subtitle, page = subtitle_analysis(subtitle_string)
+        # https://img.onemanhua.com/comic/10895/%E7%AC%AC3%E5%AD%A340%E8%AF%9D%20%E5%96%84%E5%90%8E/0001.jpg
+        url_template = 'https://img.onemanhua.com/comic/{cid}/{subtitle}/{page_id:04d}.jpg'
+        return ['https://img.onemanhua.com/comic/{cid}/{subtitle}/{page_id:04d}.jpg'.format(
+            cid=cid, subtitle=quote(subtitle), page_id=pid
+        ) for pid in range(1, page + 1)]
 
 
 if __name__ == '__main__':
@@ -139,6 +154,5 @@ if __name__ == '__main__':
             url = url.strip()
             print(url)
             # url = 'https://www.onemanhua.com/10263/'
-            print(headless)
             comic = Onemanhua(headless=headless)
             comic.start(url)
