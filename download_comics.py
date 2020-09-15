@@ -2,7 +2,8 @@
 import json
 import os
 
-DEFAULT_ROOT_DIR = '/media/yytang/Data/comics/comics_downloads'
+DEFAULT_ROOT_DIR = '/media/yytang/DATA/yytang/comics'
+DEFAULT_ROOT_DIR = os.path.expanduser(DEFAULT_ROOT_DIR)
 if os.path.isdir(DEFAULT_ROOT_DIR) is True:
     root_dir = DEFAULT_ROOT_DIR
 else:

@@ -9,9 +9,10 @@ def combine_subtitle(root_dir, comic_name):
     json_file = os.path.join(src_dir, comic_name + '.json')
     if os.path.isfile(json_file) is False:
         return
-    dst_dir = os.path.join(root_dir, comic_name + '-volumes')
+    subdir = "volumes"
+    dst_dir = os.path.join(root_dir, subdir, comic_name + '.volumes')
     if os.path.isdir(dst_dir) is False:
-        os.mkdir(dst_dir)
+        os.makedirs(dst_dir, exist_ok=True)
     with open(json_file, 'r') as f:
         comic_info = json.load(f)
     subtitles = [sub['subtitle'] for sub in comic_info['subtitle_info']]
@@ -40,7 +41,8 @@ def combine_subtitle(root_dir, comic_name):
 
 
 if __name__ == '__main__':
-    root_dir = '/media/yytang/Data/comics/comics_downloads'
+    root_dir = '/media/yytang/DATA/yytang/comics'
+    root_dir = os.path.expanduser(root_dir)
     for _dir in os.listdir(root_dir):
         _dir_path = os.path.join(root_dir, _dir)
         if os.path.isdir(_dir_path) is True:

@@ -11,8 +11,8 @@ downloads_dir = os.path.join(root_dir, 'Downloads')
 
 
 def verify_url_format(url):
-    #  Example: https://www.onemanhua.com/10262/
-    p = 'https://www.onemanhua.com/([\d]+)'
+    #  Example: https://www.ohmanhua.com/10262/
+    p = 'https://www.ohmanhua.com/([\d]+)'
     m = re.match(p, url)
 
     return (m.group(0), m.group(1)) if m else None
@@ -48,8 +48,8 @@ class Onemanhua:
             os.makedirs(comic_dir)
         json_path = os.path.join(comic_dir, title + '.json')
         if os.path.isfile(json_path) is True:
-            with open(json_path) as f:
-                comic_info = json.load(f)
+            with open(json_path) as fp:
+                comic_info = json.load(fp)
         else:
             comic_info = {
                 "title": title,
@@ -58,26 +58,33 @@ class Onemanhua:
             }
 
         total_subtitles = len(_subtitles)
+        subtitle_info = comic_info['subtitle_info']
         for idx, sub in enumerate(_subtitles):
             print("{0:.1f}%: {1}".format(idx * 100 / total_subtitles, sub['subtitle']))
-            subtitle_info = comic_info['subtitle_info']
             if len(subtitle_info) > idx:
                 if subtitle_info[idx]['subtitle'] == sub['subtitle']:
+                    subtitle_info[idx]['subtitle_url'] = sub['subtitle_url']
                     continue
                 else:
                     new_sub = {
                         'subtitle': sub['subtitle'],
+                        'subtitle_url': sub['subtitle_url'],
                         'image_urls': self.parse_image(sub['subtitle'], sub['subtitle_url'], cid)
                     }
                     subtitle_info = subtitle_info[:idx] + [new_sub] + subtitle_info[idx:]
             else:
                 subtitle_info.append({
                     'subtitle': sub['subtitle'],
+                    'subtitle_url': sub['subtitle_url'],
                     'image_urls': self.parse_image(sub['subtitle'], sub['subtitle_url'], cid)
                 })
             comic_info["subtitle_info"] = subtitle_info[:total_subtitles]
-            with open(json_path, 'w') as f:
-                f.write(json.dumps(comic_info, indent=4))
+            with open(json_path, 'w') as fp:
+                fp.write(json.dumps(comic_info, indent=4))
+
+        comic_info["subtitle_info"] = subtitle_info[:total_subtitles]
+        with open(json_path, 'w') as fp:
+            fp.write(json.dumps(comic_info, indent=4))
         self.driver.quit()
 
     def parse_title(self):
@@ -126,10 +133,10 @@ class Onemanhua:
 
     def parse_image(self, subtitle, subtitle_url, cid):
         selector = self.get_selector(subtitle_url)
-        img_sel = selector.xpath('//div[@class="mh_headpager"]/select[@class="mh_select"]/option')
+        img_sel = selector.xpath('//div[@class="mh_mangalist tc"]/div[@class="mh_comicpic"]')
         pages = len(img_sel)
 
-        return ['https://img.onemanhua.com/comic/{cid}/{subtitle}/{page_id:04d}.jpg'.format(
+        return ['https://img.ohmanhua.com//comic/{cid}/{subtitle}/{page_id:04d}.jpg'.format(
             cid=cid, subtitle=quote(subtitle), page_id=pid
         ) for pid in range(1, pages + 1)]
 
@@ -152,6 +159,8 @@ if __name__ == '__main__':
     with open(urlpath, 'r') as f:
         for url in f.readlines():
             url = url.strip()
+            if not url:
+                continue
             print(url)
             # url = 'https://www.onemanhua.com/10263/'
             comic = Onemanhua(headless=headless)
